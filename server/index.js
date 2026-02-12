@@ -8,19 +8,15 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://lost-and-found-sym-frontend.vercel.app"
-  ],
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
   credentials: true
 }));
 
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// Routes Placeholders
-app.get('/', (req, res) => {
-  res.send('Lost and Found API Running');
+app.get("/", (req, res) => {
+  res.send("API RUNNING");
 });
 
 // Auth Routes
@@ -31,7 +27,6 @@ app.use('/api/auth', authRoutes);
 const itemRoutes = require('./routes/items');
 app.use('/api/items', itemRoutes);
 
-// Match Routes
 // Match Routes
 const matchRoutes = require('./routes/matches');
 app.use('/api/matches', matchRoutes);
@@ -56,6 +51,19 @@ app.use('/api/chat', chatRoutes);
 const notificationRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await prisma.$connect();
+    console.log('✅ DATABASE CONNECTED (Localhost)');
+    app.listen(PORT, () => {
+      console.log(`🚀 SERVER RUNNING ON PORT: ${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ DATABASE FAILURE:', err.message);
+    app.listen(PORT, () => {
+      console.log(`⚠️  SERVER STARTED (Port ${PORT})`);
+    });
+  }
+};
+
+startServer();

@@ -147,7 +147,15 @@ router.post('/match/:lostItemId', verifyToken, async (req, res) => {
         }
         */
 
+        if (finalMatches.length === 0) {
+            return res.json({
+                status: "waiting",
+                message: "No match found yet. Please wait for new data."
+            });
+        }
+
         res.json({
+            status: "success",
             matches: finalMatches,
             source: 'ai-heuristic-v1'
         });

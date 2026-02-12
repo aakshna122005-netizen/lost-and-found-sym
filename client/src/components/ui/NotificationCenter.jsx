@@ -126,7 +126,7 @@ const NotificationCenter = () => {
                                                 </span>
                                                 {notification.link && (
                                                     <Link
-                                                        to={notification.link.replace('http://localhost:5173', '')}
+                                                        to={notification.link.replace(/^https?:\/\/[^/]+/, '')}
                                                         onClick={() => {
                                                             setIsOpen(false);
                                                             markAsRead(notification.id);

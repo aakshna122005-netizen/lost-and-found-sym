@@ -29,7 +29,10 @@ router.post('/register', async (req, res) => {
 
         res.json({ message: 'Registration successful. Please login to verify your email.' });
     } catch (err) {
-        console.error(err);
+        console.error('Registration Error:', err.message);
+        if (err.message.includes('Tenant or user not found')) {
+            return res.status(503).json({ error: 'Database connection configuration error. Please ensure DATABASE_URL includes ?pgbouncer=true' });
+        }
         res.status(500).json({ error: err.message });
     }
 });
@@ -67,7 +70,10 @@ router.post('/login', async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
+        console.error('Login Error:', err.message);
+        if (err.message.includes('Tenant or user not found')) {
+            return res.status(503).json({ error: 'Database connection configuration error. Please ensure DATABASE_URL includes ?pgbouncer=true' });
+        }
         res.status(500).json({ error: err.message });
     }
 });

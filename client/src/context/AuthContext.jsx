@@ -78,14 +78,12 @@ export const AuthProvider = ({ children }) => {
     const loginWithToken = (token, userData) => {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(userData));
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         setUser(userData);
     };
 
     // ✅ Logout
     const logout = () => {
         localStorage.clear();
-        delete axios.defaults.headers.common["Authorization"];
         setUser(null);
     };
 

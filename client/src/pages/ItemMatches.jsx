@@ -77,7 +77,7 @@ const ItemMatches = () => {
                             <div key={foundItem.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6">
                                 <div className="w-full md:w-48 h-48 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
                                     {foundItem.imageUrl ? (
-                                        <img src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/${foundItem.imageUrl}`} alt="Found Item" className="w-full h-full object-cover" />
+                                        <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}/${foundItem.imageUrl}`} alt="Found Item" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
                                     )}
