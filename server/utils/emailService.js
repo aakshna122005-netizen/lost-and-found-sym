@@ -18,12 +18,15 @@ const createTransporter = () => {
 
     return nodemailer.createTransport({
         host: SMTP_HOST,
-        port: parseInt(SMTP_PORT) || 587,
-        secure: SMTP_SECURE === 'true', // true for 465, false for other ports
+        port: parseInt(SMTP_PORT) || 465,
+        secure: SMTP_PORT === '465' || SMTP_SECURE === 'true',
         auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASS,
         },
+        connectionTimeout: 15000, // 15 seconds
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
     });
 };
 
