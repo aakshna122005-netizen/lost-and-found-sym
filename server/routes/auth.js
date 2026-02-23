@@ -105,7 +105,10 @@ router.post('/forgot-password', async (req, res) => {
 
         res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
     } catch (err) {
-        console.error(err);
+        console.error('Forgot Password Error:', err.message);
+        if (err.message.includes('Tenant or user not found')) {
+            return res.status(503).json({ error: 'Database connection error. Please ensure DATABASE_URL includes ?pgbouncer=true on Render.' });
+        }
         res.status(500).json({ error: err.message });
     }
 });
@@ -137,7 +140,10 @@ router.post('/reset-password', async (req, res) => {
 
         res.json({ message: 'Password has been reset successfully. You can now login.' });
     } catch (err) {
-        console.error(err);
+        console.error('Reset Password Error:', err.message);
+        if (err.message.includes('Tenant or user not found')) {
+            return res.status(503).json({ error: 'Database connection error. Please ensure DATABASE_URL includes ?pgbouncer=true on Render.' });
+        }
         res.status(500).json({ error: err.message });
     }
 });
