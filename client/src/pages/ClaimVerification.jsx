@@ -23,13 +23,16 @@ const ClaimVerification = () => {
         fetchClaim();
     }, [claimId]);
 
-    const handleAction = async (status) => {
+    const handleAction = async (action) => {
         try {
-            // Placeholder: Backend endpoint for update status would go here
-            // For MVP Demo, we simulate
-            alert(`Claim marked as ${status}`);
+            const res = await api.post(`/admin/claims/${claimId}/action`, { action });
+            alert(res.data.message);
+            // Refresh claim data
+            const updatedClaim = await api.get(`/claims/${claimId}`);
+            setClaim(updatedClaim.data);
         } catch (err) {
             console.error(err);
+            alert(err.response?.data?.error || 'Error performing action');
         }
     };
 
@@ -67,10 +70,10 @@ const ClaimVerification = () => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={() => handleAction('Approved')} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 flex items-center justify-center gap-2">
+                    <button onClick={() => handleAction('approve')} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 flex items-center justify-center gap-2">
                         <Check /> Approve Claim & Release Item
                     </button>
-                    <button onClick={() => handleAction('Rejected')} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 flex items-center justify-center gap-2">
+                    <button onClick={() => handleAction('reject')} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 flex items-center justify-center gap-2">
                         <X /> Reject Claim
                     </button>
                 </div>

@@ -48,11 +48,9 @@ const ItemMatches = () => {
                 contentInventory: answers.inventory
             });
 
-            // alert('Verification submitted! The finder has been notified.');
-            // DEMO MODE: Show the link for the Finder persona
-            alert(`Verification Submitted!\n\nDEMO INSTRUCTION:\nSwitch to Finder Persona and go to:\n/claim/${claimRes.data.id}`);
-
+            alert('Verification Submitted! The finder and admin have been notified.');
             setVerifying(null);
+            setAnswers({ description: '', marks: '', inventory: '' });
         } catch (err) {
             console.error(err);
             alert('Error submitting claim');
