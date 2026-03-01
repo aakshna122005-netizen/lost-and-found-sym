@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Search, PlusCircle, Bell, User, LogOut } from 'lucide-react';
+import { Search, PlusCircle, Bell, User, LogOut, Shield } from 'lucide-react';
 import NotificationCenter from '../ui/NotificationCenter';
 
 const Navbar = () => {
@@ -30,6 +30,13 @@ const Navbar = () => {
                                 <PlusCircle size={18} />
                                 I Found Something
                             </Link>
+
+                            {user.role === 'admin' && (
+                                <Link to="/admin/claims" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors font-bold bg-indigo-50 px-3 py-1 rounded-lg">
+                                    <Shield size={18} />
+                                    Moderation
+                                </Link>
+                            )}
                             <div className="h-6 w-px bg-slate-200 mx-2"></div>
 
                             <NotificationCenter />

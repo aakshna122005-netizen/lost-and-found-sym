@@ -40,13 +40,12 @@ router.post('/:claimId', verifyToken, async (req, res) => {
 
         // Access check: Only Finder or Claimer
         if (claim.claimerId !== req.user.id && claim.foundItem.finderId !== req.user.id) {
-            return res.status(403).json({ error: 'Unauthorized' });
+            return res.status(403).json({ error: 'Unauthorized to chat' });
         }
 
-        // Status check: Chat only allowed after verification or approval
-        const allowedStatuses = ['approved', 'verified', 'completed'];
-        if (!allowedStatuses.includes(claim.status)) {
-            return res.status(403).json({ error: 'Chat is locked until ownership is verified' });
+        // Production Rule: Chat is ONLY unlocked when status is 'approved'
+        if (claim.status !== 'approved' && claim.status !== 'completed') {
+            return res.status(403).json({ error: 'Secure chat is locked until admin approval of ownership proof.' });
         }
 
         const encryptedContent = encrypt(content);
@@ -59,7 +58,7 @@ router.post('/:claimId', verifyToken, async (req, res) => {
             }
         });
 
-        res.json({ ...message, content: content }); // Return decrypted to sender
+        res.json({ ...message, content });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -76,9 +75,9 @@ router.get('/:claimId', verifyToken, async (req, res) => {
         });
 
         if (!claim) return res.status(404).json({ error: 'Claim not found' });
-        if (claim.claimerId !== req.user.id && claim.foundItem.finderId !== req.user.id) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
+
+        const isParticipant = (claim.claimerId === req.user.id || claim.foundItem.finderId === req.user.id);
+        if (!isParticipant) return res.status(403).json({ error: 'Access denied' });
 
         const messages = await prisma.chatMessage.findMany({
             where: { claimId: parseInt(claimId) },

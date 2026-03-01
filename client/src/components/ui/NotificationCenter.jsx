@@ -11,7 +11,7 @@ const NotificationCenter = () => {
 
     const fetchNotifications = async () => {
         try {
-            const res = await api.get('/notifications');
+            const res = await api.get('notifications');
             setNotifications(res.data);
             setUnreadCount(res.data.filter(n => !n.read).length);
         } catch (err) {
@@ -38,7 +38,7 @@ const NotificationCenter = () => {
 
     const markAsRead = async (id) => {
         try {
-            await api.put(`/notifications/read/${id}`, {});
+            await api.put(`notifications/read/${id}`, {});
             setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {
@@ -48,7 +48,7 @@ const NotificationCenter = () => {
 
     const markAllRead = async () => {
         try {
-            await api.put('/notifications/read-all', {});
+            await api.put('notifications/read-all', {});
             setNotifications(notifications.map(n => ({ ...n, read: true })));
             setUnreadCount(0);
         } catch (err) {

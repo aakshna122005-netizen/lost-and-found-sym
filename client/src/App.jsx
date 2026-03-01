@@ -7,6 +7,8 @@ import ReportLost from './pages/ReportLost';
 import ReportFound from './pages/ReportFound';
 import ItemMatches from './pages/ItemMatches';
 import ClaimVerification from './pages/ClaimVerification';
+import AdminClaims from './pages/AdminClaims';
+import Dashboard from './pages/Dashboard';
 import AuthCallback from './pages/AuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -30,6 +32,8 @@ function App() {
               <Route path="/report/found" element={<ReportFound />} />
               <Route path="/matches/:itemId" element={<ItemMatches />} />
               <Route path="/claim/:claimId" element={<ClaimVerification />} />
+              <Route path="/admin/claims" element={<AdminClaims />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               {/* Add more routes as needed */}
             </Routes>
           </main>

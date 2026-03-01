@@ -18,29 +18,33 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
-    // ✅ Login
     const login = async (email, password) => {
         try {
-            const res = await api.post("/auth/login", {
+            const res = await api.post("auth/login", {
                 email,
                 password,
             });
 
-            const { token, user: userData } = res.data;
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(userData));
-            setUser(userData);
-
-            return { success: true, message: res.data.message };
+            if (res.data.success) {
+                const { token, user: userData } = res.data;
+                localStorage.setItem("token", token);
+                localStorage.setItem("user", JSON.stringify(userData));
+                setUser(userData);
+                return { success: true, message: res.data.message };
+            }
+            return { success: false, error: res.data.message };
         } catch (error) {
-            return { success: false, error: error.response?.data?.error || "Login failed" };
+            return {
+                success: false,
+                error: error.response?.data?.message || "Login failed"
+            };
         }
     };
 
     // ✅ Forgot Password
     const forgotPassword = async (email) => {
         try {
-            const res = await api.post("/auth/forgot-password", { email });
+            const res = await api.post("auth/forgot-password", { email });
             return { success: true, message: res.data.message };
         } catch (error) {
             return { success: false, error: error.response?.data?.error || "Request failed" };
@@ -50,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     // ✅ Reset Password
     const resetPassword = async (token, newPassword) => {
         try {
-            const res = await api.post("/auth/reset-password", {
+            const res = await api.post("auth/reset-password", {
                 token,
                 newPassword
             });
@@ -60,17 +64,30 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // ✅ Register
     const register = async (username, email, password) => {
         try {
-            await api.post("/auth/register", {
+            const res = await api.post("auth/register", {
                 username,
                 email,
                 password,
             });
-            return { success: true, message: "Registration successful. Please login." };
+
+            // Phase 3 Integration: Leverage backend success/message
+            if (res.data.success) {
+                // Auto-login after registration if token is provided
+                if (res.data.token && res.data.user) {
+                    localStorage.setItem("token", res.data.token);
+                    localStorage.setItem("user", JSON.stringify(res.data.user));
+                    setUser(res.data.user);
+                }
+                return { success: true, message: res.data.message };
+            }
+            return { success: false, error: res.data.message };
         } catch (error) {
-            return { success: false, error: error.response?.data?.error || "Registration failed" };
+            return {
+                success: false,
+                error: error.response?.data?.message || "Registration encountered an error"
+            };
         }
     };
 

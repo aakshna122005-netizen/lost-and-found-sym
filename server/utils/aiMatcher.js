@@ -118,9 +118,9 @@ const findMatches = async (newItem, type) => {
 
         if (type === 'lost') {
             const foundItems = await prisma.foundItem.findMany({
-                where: { status: 'available' }
+                where: { status: 'active' } // Only match against available items
             });
-            console.log(`Checking against ${foundItems.length} found items...`);
+            console.log(`Checking against ${foundItems.length} active found items...`);
             for (let item of foundItems) {
                 item = normalizeItem(item);
                 const score = calculateMatchScore(normalizedNewItem, item);
@@ -130,9 +130,9 @@ const findMatches = async (newItem, type) => {
             }
         } else {
             const lostItems = await prisma.lostItem.findMany({
-                where: { status: 'lost' }
+                where: { status: 'active' } // Only match against items still looking
             });
-            console.log(`Checking against ${lostItems.length} lost items...`);
+            console.log(`Checking against ${lostItems.length} active lost items...`);
             for (let item of lostItems) {
                 item = normalizeItem(item);
                 const score = calculateMatchScore(item, normalizedNewItem);
@@ -157,10 +157,21 @@ const findMatches = async (newItem, type) => {
                         lostItemId: lostId,
                         foundItemId: foundId,
                         confidence: match.score,
-                        status: 'pending'
+                        status: 'active' // Use 'active' to signify an unverified match
                     }
                 });
-                console.log(`🎉 Match Found! Confidence: ${match.score}% (Lost: ${lostId}, Found: ${foundId})`);
+
+                // Update Items to match_found (Locking them)
+                await prisma.lostItem.update({
+                    where: { id: lostId },
+                    data: { status: 'match_found' }
+                });
+                await prisma.foundItem.update({
+                    where: { id: foundId },
+                    data: { status: 'match_found' }
+                });
+
+                console.log(`🎉 Match Found & Items Locked! Confidence: ${match.score}% (Lost: ${lostId}, Found: ${foundId})`);
 
                 // Trigger notification
                 const { notifyMatch } = require('./notificationService');

@@ -13,7 +13,7 @@ const ItemMatches = () => {
     useEffect(() => {
         const fetchMatches = async () => {
             try {
-                const res = await api.post(`/matches/match/${itemId}`, {});
+                const res = await api.post(`matches/match/${itemId}`, {});
                 setMatches(res.data.matches); // Expects [{ foundItem, score, details }]
             } catch (err) {
                 console.error(err);
@@ -36,16 +36,18 @@ const ItemMatches = () => {
         e.preventDefault();
         try {
             // 1. Init Claim
-            const claimRes = await api.post('/claims/init', {
+            const claimRes = await api.post('claims/init', {
                 lostItemId: itemId,
                 foundItemId: verifying
             });
 
             // 2. Submit Answers
             await api.post(`/claims/verify/${claimRes.data.id}`, {
-                detailedDescription: answers.description,
-                secretMarks: answers.marks,
-                contentInventory: answers.inventory
+                verificationData: {
+                    detailedDescription: answers.description,
+                    secretMarks: answers.marks,
+                    contentInventory: answers.inventory
+                }
             });
 
             alert('Verification Submitted! The finder and admin have been notified.');
@@ -73,9 +75,18 @@ const ItemMatches = () => {
                         const { foundItem, score, details } = m;
                         return (
                             <div key={foundItem.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6">
-                                <div className="w-full md:w-48 h-48 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                                <div className="w-full md:w-48 h-48 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 border border-slate-200">
                                     {foundItem.imageUrl ? (
-                                        <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}/${foundItem.imageUrl}`} alt="Found Item" className="w-full h-full object-cover" />
+                                        <div className="relative w-full h-full">
+                                            <img
+                                                src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}/${foundItem.imageUrl}`}
+                                                alt="Found Item"
+                                                className="w-full h-full object-cover blur-sm"
+                                            />
+                                            <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
+                                                <Shield size={24} className="text-white/50" />
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
                                     )}
@@ -124,20 +135,44 @@ const ItemMatches = () => {
                         <p className="text-slate-600 mb-4 text-sm">To prevent fraud, please answer specific questions only the owner would know.</p>
                         <form onSubmit={submitVerification} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Detailed Description</label>
-                                <textarea name="description" onChange={handleAnswerChange} className="w-full border rounded-lg px-4 py-2" required placeholder="Describe contents, unique features..."></textarea>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Detailed Description</label>
+                                <textarea
+                                    name="description"
+                                    onChange={handleAnswerChange}
+                                    className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
+                                    required
+                                    placeholder="Brand, size, unique identifiers..."
+                                ></textarea>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Unique Marks / Scratches</label>
-                                <input type="text" name="marks" onChange={handleAnswerChange} className="w-full border rounded-lg px-4 py-2" required placeholder="Safety pin on strap, etc." />
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Unique Marks</label>
+                                    <input
+                                        type="text"
+                                        name="marks"
+                                        onChange={handleAnswerChange}
+                                        className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
+                                        required
+                                        placeholder="Scratches, stickers, etc."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Internal Contents</label>
+                                    <input
+                                        type="text"
+                                        name="inventory"
+                                        onChange={handleAnswerChange}
+                                        className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
+                                        required
+                                        placeholder="What's inside the item?"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">What's inside?</label>
-                                <input type="text" name="inventory" onChange={handleAnswerChange} className="w-full border rounded-lg px-4 py-2" required placeholder="3 books, blue bottle..." />
-                            </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button type="button" onClick={() => setVerifying(null)} className="px-4 py-2 text-slate-500 font-medium">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium">Submit Verification</button>
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setVerifying(null)} className="px-6 py-3 text-slate-500 font-bold text-sm">Cancel</button>
+                                <button type="submit" className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
+                                    Submit for Admin Review
+                                </button>
                             </div>
                         </form>
                     </div>

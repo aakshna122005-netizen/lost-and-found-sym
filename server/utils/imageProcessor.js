@@ -1,53 +1,59 @@
-const crypto = require('crypto');
-const fs = require('fs');
-const axios = require('axios');
+const sharp = require('sharp');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
-const ALGORITHM = 'aes-256-ctr';
-const ENCRYPTION_KEY = process.env.IMAGE_ENCRYPTION_KEY || 'default_32_byte_key_for_testing_purposes_only!!'; // Should be 32 bytes
+/**
+ * Generates a blurred/masked version of an image for privacy.
+ * @param {string} originalRelativePath - Relative path to the original image in uploads/
+ */
+const generateMaskedImage = async (originalRelativePath) => {
+    try {
+        const uploadsDir = path.join(__dirname, '../uploads');
+        const originalPath = path.join(uploadsDir, originalRelativePath.replace('uploads/', ''));
+
+        // Ensure original exists
+        if (!fs.existsSync(originalPath)) {
+            throw new Error(`Original image not found at ${originalPath}`);
+        }
+
+        const fileName = path.basename(originalPath);
+        const maskedFileName = `masked_${fileName}`;
+        const maskedPath = path.join(path.dirname(originalPath), maskedFileName);
+
+        // Process image: Gaussian Blur (15-20 range for privacy)
+        await sharp(originalPath)
+            .blur(20)
+            .toFile(maskedPath);
+
+        const relativeDir = path.dirname(originalRelativePath);
+        return path.join(relativeDir, maskedFileName).replace(/\\/g, '/');
+    } catch (err) {
+        console.error('❌ IMAGE BLUR ERROR:', err.message);
+        return originalRelativePath; // Fallback to original if processing fails (safe reveal)
+    }
+};
+
+const ENCRYPTION_KEY = Buffer.from(process.env.IMAGE_ENCRYPTION_KEY || 'default_32_byte_key_0123456789012', 'utf8');
 const IV_LENGTH = 16;
 
-/**
- * Encrypt a file at source and write to destination
- */
-function encryptFile(sourcePath, destPath) {
+const encryptFile = (inputPath, outputPath) => {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+    const input = fs.createReadStream(inputPath);
+    const output = fs.createWriteStream(outputPath);
 
-    const input = fs.readFileSync(sourcePath);
-    const encrypted = Buffer.concat([iv, cipher.update(input), cipher.final()]);
+    output.write(iv);
+    input.pipe(cipher).pipe(output);
+};
 
-    fs.writeFileSync(destPath, encrypted);
-    return destPath;
-}
+const decryptFile = (inputPath, res) => {
+    const input = fs.createReadStream(inputPath);
+    input.once('readable', () => {
+        const iv = input.read(IV_LENGTH);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+        input.pipe(decipher).pipe(res);
+    });
+};
 
-/**
- * Decrypt a file and return the buffer (not stored on disk)
- */
-function decryptFile(sourcePath) {
-    const data = fs.readFileSync(sourcePath);
-    const iv = data.slice(0, IV_LENGTH);
-    const encryptedText = data.slice(IV_LENGTH);
-
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
-    const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
-
-    return decrypted;
-}
-
-/**
- * Call AI Service to mask an image
- */
-async function maskImage(imagePath) {
-    try {
-        const response = await axios.post(`${process.env.AI_SERVICE_URL}/mask`, {
-            image_path: path.resolve(imagePath)
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Masking Error:', error.response?.data || error.message);
-        throw new Error('AI Masking failed');
-    }
-}
-
-module.exports = { encryptFile, decryptFile, maskImage };
+module.exports = { generateMaskedImage, encryptFile, decryptFile };

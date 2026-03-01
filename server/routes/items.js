@@ -3,117 +3,147 @@ const verifyToken = require('../middleware/auth');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/originals/' });
-const { encryptFile, maskImage } = require('../utils/imageProcessor');
 const fs = require('fs');
 const path = require('path');
+const { generateMaskedImage, encryptFile } = require('../utils/imageProcessor');
 
-// Create Lost Item
+// Helper to ensure directories exist
+const dir = './uploads/originals';
+if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, './uploads/originals'),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+// 1. Create Lost Item
 router.post('/lost', verifyToken, upload.single('image'), async (req, res) => {
-    console.log('--- POST /api/items/lost ---');
     try {
         const { itemName, category, color, material, dateLost, locationText, lat, lng, description, uniqueMarks } = req.body;
 
         if (!itemName || !category || !dateLost || !lat || !lng) {
-            return res.status(400).json({ error: 'Missing required fields: itemName, category, dateLost, and precise location must be selected.' });
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        let maskedPath = null;
+        let originalPath = null;
+
+        if (req.file) {
+            const relativePath = `uploads/originals/${req.file.filename}`;
+            const maskImage = req.body.maskImage === 'true';
+
+            if (maskImage) {
+                maskedPath = await generateMaskedImage(relativePath);
+                originalPath = relativePath + '.enc';
+                encryptFile(req.file.path, path.join(__dirname, '../', originalPath));
+                fs.unlinkSync(req.file.path); // Remove unencrypted original
+            } else {
+                maskedPath = relativePath;
+                originalPath = relativePath;
+            }
         }
 
         const item = await prisma.lostItem.create({
             data: {
                 userId: req.user.id,
-                itemName: itemName,
+                itemName,
                 category,
-                color: color || null,
-                material: material || null,
+                color,
+                material,
                 dateLost: new Date(dateLost),
-                locationText: locationText || 'Not specified',
+                locationText,
                 lat: parseFloat(lat),
                 lng: parseFloat(lng),
-                description: description || null,
-                uniqueMarks: uniqueMarks || null,
-                imageUrl: req.file ? req.file.path : null, // Store path for prototype
-                status: 'lost'
+                description,
+                uniqueMarks,
+                imageUrl: maskedPath,
+                originalImageUrl: originalPath,
+                status: 'active'
             }
         });
 
-        // Trigger AI Matching
         const { findMatches } = require('../utils/aiMatcher');
-        findMatches(item, 'lost');
+        findMatches(item, 'lost').catch(err => console.error('Matching Error:', err.message));
 
         res.json(item);
     } catch (err) {
-        console.error('Lost Item Creation Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// Create Found Item
+// 2. Create Found Item
 router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
-    console.log('--- POST /api/items/found ---');
     try {
         const { itemName, category, lat, lng, condition, storagePlace, finderPreference, locationText } = req.body;
 
         if (!itemName || !category || !lat || !lng || !req.file) {
-            return res.status(400).json({ error: 'Missing required fields: itemName, category, precise location, and image are mandatory.' });
+            return res.status(400).json({ error: 'Name, category, location, and image are mandatory.' });
         }
 
-        // 1. Encrypt Original
-        const originalPath = req.file.path;
-        const encryptedPath = originalPath + '.enc';
-        encryptFile(originalPath, encryptedPath);
+        const relativePath = `uploads/originals/${req.file.filename}`;
+        const maskImage = req.body.maskImage === 'true';
+        let maskedPath = null;
+        let originalPath = null;
 
-        // 2. Clear unencrypted original from disk (but keep it for AI masking if needed)
-        // Actually, AI service needs the original image to mask it. 
-        // We will mask it first, then encrypt/delete original.
-
-        let maskedUrl = null;
-        try {
-            const maskingResult = await maskImage(originalPath);
-            maskedUrl = maskingResult.masked_path;
-        } catch (error) {
-            console.error('Masking failed, falling back to manual review flag');
+        if (maskImage) {
+            maskedPath = await generateMaskedImage(relativePath);
+            originalPath = relativePath + '.enc';
+            encryptFile(req.file.path, path.join(__dirname, '../', originalPath));
+            fs.unlinkSync(req.file.path); // Remove unencrypted original
+        } else {
+            maskedPath = relativePath;
+            originalPath = relativePath;
         }
 
         const item = await prisma.foundItem.create({
             data: {
                 finderId: req.user.id,
-                itemName: itemName,
+                itemName,
                 category,
-                locationText: locationText || 'Not specified',
+                locationText,
                 lat: parseFloat(lat),
                 lng: parseFloat(lng),
-                condition: condition || null,
-                storagePlace: storagePlace || null,
-                finderPreference: finderPreference || 'meet',
-                imageUrl: maskedUrl || originalPath, // Serve masked to public
-                originalImageUrl: encryptedPath, // Store encrypted path secretly
-                status: 'available'
+                condition,
+                storagePlace,
+                finderPreference,
+                imageUrl: maskedPath,
+                originalImageUrl: originalPath,
+                status: 'active'
             }
         });
 
-        // Delete the temp original file after processing
-        fs.unlinkSync(originalPath);
-
-        // Trigger AI Matching
         const { findMatches } = require('../utils/aiMatcher');
-        findMatches(item, 'found');
+        findMatches(item, 'found').catch(err => console.error('Matching Error:', err.message));
 
         res.json(item);
     } catch (err) {
-        console.error('Found Item Creation Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// Get Items (Simple Feed)
+// 3. Get Items (Status: Active)
 router.get('/lost', async (req, res) => {
-    const items = await prisma.lostItem.findMany({ where: { status: 'lost' }, include: { user: { select: { username: true } } } });
-    res.json(items);
+    try {
+        const items = await prisma.lostItem.findMany({
+            where: { status: 'active' },
+            include: { user: { select: { username: true } } }
+        });
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 router.get('/found', async (req, res) => {
-    const items = await prisma.foundItem.findMany({ where: { status: 'available' } });
-    res.json(items);
+    try {
+        const items = await prisma.foundItem.findMany({
+            where: { status: 'active' }
+        });
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

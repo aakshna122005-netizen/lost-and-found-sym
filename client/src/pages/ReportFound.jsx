@@ -15,6 +15,7 @@ const ReportFound = () => {
     });
     const [location, setLocation] = useState(null);
     const [image, setImage] = useState(null);
+    const [maskImage, setMaskImage] = useState(true);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,9 +34,10 @@ const ReportFound = () => {
         data.append('lat', location.lat);
         data.append('lng', location.lng);
         data.append('image', image);
+        data.append('maskImage', maskImage);
 
         try {
-            await api.post('/items/found', data, {
+            const res = await api.post('items/found', data, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             alert('Thank you! Found item reported successfully.');
@@ -127,6 +129,12 @@ const ReportFound = () => {
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Image (Mandatory)</label>
                     <input type="file" required onChange={(e) => setImage(e.target.files[0])} className="w-full" />
+                    {image && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                            <input type="checkbox" id="maskImage" checked={maskImage} onChange={(e) => setMaskImage(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500" />
+                            <label htmlFor="maskImage" className="text-sm font-medium text-emerald-900">Mask image for privacy?</label>
+                        </div>
+                    )}
                 </div>
 
                 <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition-colors">

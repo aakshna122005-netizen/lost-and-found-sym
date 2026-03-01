@@ -2,8 +2,8 @@ const router = require('express').Router();
 const verifyToken = require('../middleware/auth');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { createNotification } = require('../utils/notificationService');
 
-// Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Admin access required' });
@@ -11,13 +11,13 @@ const isAdmin = (req, res, next) => {
     next();
 };
 
-// 1. Get all pending claims for admin
+// 1. Get all pending reviews
 router.get('/claims/pending', verifyToken, isAdmin, async (req, res) => {
     try {
         const claims = await prisma.claim.findMany({
-            where: { status: 'pending' },
+            where: { status: 'admin_review' },
             include: {
-                claimer: { select: { username: true, email: true } },
+                claimer: { select: { username: true, email: true, trustScore: true } },
                 foundItem: { include: { finder: { select: { username: true, email: true } } } },
                 lostItem: true
             },
@@ -25,7 +25,6 @@ router.get('/claims/pending', verifyToken, isAdmin, async (req, res) => {
         });
         res.json(claims);
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -34,11 +33,11 @@ router.get('/claims/pending', verifyToken, isAdmin, async (req, res) => {
 router.post('/claims/:id/action', verifyToken, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { action } = req.body; // 'approve' or 'reject'
+        const { action, reason } = req.body; // 'approve' or 'reject'
 
         const claim = await prisma.claim.findUnique({
             where: { id: parseInt(id) },
-            include: { foundItem: true, claimer: true }
+            include: { foundItem: true, lostItem: true, claimer: true }
         });
 
         if (!claim) return res.status(404).json({ error: 'Claim not found' });
@@ -50,52 +49,61 @@ router.post('/claims/:id/action', verifyToken, isAdmin, async (req, res) => {
                 data: { status: 'approved' }
             });
 
-            // Update found item status to claimed
+            // Reveal Image
             await prisma.foundItem.update({
                 where: { id: claim.foundItemId },
-                data: { status: 'claimed' }
+                data: { imageVisibilityStatus: 'revealed' }
             });
 
-            // Notify Claimer
-            const { createNotification } = require('../utils/notificationService');
+            // Notifications
             await createNotification(claim.claimerId, {
-                title: 'Claim Approved! 🎉',
-                message: `Your claim for ${claim.foundItem.itemName} has been approved by the admin. You can now chat with the finder.`,
+                title: 'Ownership Verified! 🎉',
+                message: `Admin has approved your proof for ${claim.foundItem.itemName}. Chat enabled.`,
                 type: 'system',
                 link: `/claim/${claim.id}`
             });
 
-            // Notify Finder
             await createNotification(claim.foundItem.finderId, {
-                title: 'Claim Verified',
-                message: `The claim for your found item ${claim.foundItem.itemName} has been verified. You can now coordinate handover.`,
+                title: 'Proof Verified by Admin',
+                message: `The claim for ${claim.foundItem.itemName} is verified. Please coordinate handover.`,
                 type: 'system',
                 link: `/claim/${claim.id}`
             });
 
-            res.json({ message: 'Claim approved successfully' });
+            res.json({ message: 'Claim approved and image revealed.' });
         } else if (action === 'reject') {
             await prisma.claim.update({
                 where: { id: parseInt(id) },
                 data: { status: 'rejected' }
             });
 
-            // Notify Claimer
-            const { createNotification } = require('../utils/notificationService');
+            // Reset items to active for new matches
+            await prisma.foundItem.update({
+                where: { id: claim.foundItemId },
+                data: { status: 'active' }
+            });
+
+            if (claim.lostItemId) {
+                await prisma.lostItem.update({
+                    where: { id: claim.lostItemId },
+                    data: { status: 'active' }
+                });
+            }
+
+            // Notification
             await createNotification(claim.claimerId, {
                 title: 'Claim Rejected',
-                message: `Your claim for ${claim.foundItem.itemName} was not approved after manual review.`,
+                message: `Admin rejected your claim for ${claim.foundItem.itemName}. Reason: ${reason || 'Insufficient proof'}`,
                 type: 'system',
                 link: `/claim/${claim.id}`
             });
 
-            res.json({ message: 'Claim rejected' });
+            res.json({ message: 'Claim rejected and items reset to active.' });
         } else {
             res.status(400).json({ error: 'Invalid action' });
         }
 
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });

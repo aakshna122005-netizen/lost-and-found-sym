@@ -68,4 +68,33 @@ const notifyMatch = async (matchId) => {
     }
 };
 
-module.exports = { createNotification, notifyMatch };
+const notifyClaimStatusChange = async (claimId, status) => {
+    try {
+        const claim = await prisma.claim.findUnique({
+            where: { id: claimId },
+            include: {
+                claimer: true,
+                foundItem: true
+            }
+        });
+
+        if (!claim) return;
+
+        const isApproved = status === 'approved';
+
+        await createNotification(claim.claimerId, {
+            title: isApproved ? 'Claim Approved! 🎉' : 'Claim Rejected',
+            message: isApproved
+                ? `Verification successful for "${claim.foundItem.category}". Secure chat is now unlocked.`
+                : `Verification for "${claim.foundItem.category}" was unsuccessful. Please check your data.`,
+            type: isApproved ? 'success' : 'alert',
+            link: `/claim/${claim.id}`,
+            sendEmail: true
+        });
+
+    } catch (err) {
+        console.error('Error reporting claim status change:', err);
+    }
+};
+
+module.exports = { createNotification, notifyMatch, notifyClaimStatusChange };

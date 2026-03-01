@@ -7,23 +7,39 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow all origins for the public demo to avoid Vercel preview URL mismatches
-    if (!origin || process.env.FRONTEND_URL === '*' || origin.includes('vercel.app')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+// 1. Environment Validation
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'FRONTEND_URL', 'SMTP_HOST', 'EMAIL_USER', 'EMAIL_PASS'];
+const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error(`❌ CRITICAL STARTUP ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
+// 2. Production Security Setup
+const { setupSecurity, centralErrorHandler } = require('./middleware/security');
+setupSecurity(app);
 
 app.use(express.json());
+const logFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use(require('morgan')(logFormat)); // Structured logging Phase 4.5
 app.use('/uploads', express.static('uploads'));
 
 app.get("/", (req, res) => {
   res.send("API RUNNING");
+});
+
+// Public Stats Endpoint
+app.get("/api/stats", async (req, res) => {
+  try {
+    const [lost, found, completed] = await Promise.all([
+      prisma.lostItem.count({ where: { status: 'active' } }),
+      prisma.foundItem.count({ where: { status: 'active' } }),
+      prisma.claim.count({ where: { status: 'completed' } })
+    ]);
+    res.json({ lost, found, completed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Auth Routes
@@ -57,6 +73,9 @@ app.use('/api/chat', chatRoutes);
 // Notification Routes
 const notificationRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationRoutes);
+
+// 3. Central Error Handling
+app.use(centralErrorHandler);
 
 const startServer = async () => {
   try {

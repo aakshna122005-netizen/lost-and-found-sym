@@ -30,13 +30,9 @@ router.post('/match/:lostItemId', verifyToken, async (req, res) => {
         if (!lostItem) return res.status(404).json({ error: 'Item not found' });
 
         // 1. Fetch potential candidates (Found Items)
-        // Optimization: Filter by Category first usually, but for Demo we can fetch all available
-        // and score them to show "Explainability" even for partial matches if needed.
-        // But strictly, category mismatch usually rules out.
         const candidates = await prisma.foundItem.findMany({
             where: {
-                status: 'available',
-                // Optional: category: lostItem.category (Strict match)
+                status: { in: ['active', 'match_found'] },
             }
         });
 
