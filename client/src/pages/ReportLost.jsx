@@ -145,12 +145,11 @@ const ReportLost = () => {
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Upload Image (Optional)</label>
                     <input type="file" onChange={(e) => setImage(e.target.files[0])} className="w-full" />
-                    {image && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
-                            <input type="checkbox" id="maskImage" checked={maskImage} onChange={(e) => setMaskImage(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500" />
-                            <label htmlFor="maskImage" className="text-sm font-medium text-indigo-900">Mask image for privacy?</label>
-                        </div>
-                    )}
+
+                    <div className="flex items-center gap-2 mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                        <input type="checkbox" id="maskImage" checked={maskImage} onChange={(e) => setMaskImage(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500" />
+                        <label htmlFor="maskImage" className="text-sm font-medium text-indigo-900">Mask image for privacy?</label>
+                    </div>
                 </div>
 
                 <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors">
