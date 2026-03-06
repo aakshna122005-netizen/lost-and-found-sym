@@ -37,17 +37,10 @@ const Home = () => {
                         Privacy-first, community-driven.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        {user ? (
-                            <Link to="/dashboard" className="flex items-center gap-2 px-10 py-5 bg-slate-900 text-white rounded-2xl font-bold text-lg hover:bg-slate-800 transition-all shadow-2xl hover:shadow-slate-200">
-                                <LayoutDashboard size={24} />
-                                View My Dashboard
-                            </Link>
-                        ) : (
-                            <Link to="/report/lost" className="flex items-center gap-2 px-10 py-5 bg-indigo-600 text-white rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl hover:shadow-indigo-200">
-                                <Search size={24} />
-                                I Lost Something
-                            </Link>
-                        )}
+                        <Link to="/report/lost" className="flex items-center gap-2 px-10 py-5 bg-indigo-600 text-white rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl hover:shadow-indigo-200">
+                            <Search size={24} />
+                            I Lost Something
+                        </Link>
                         <Link to="/report/found" className="flex items-center gap-2 px-10 py-5 bg-white text-indigo-600 border-2 border-indigo-100 rounded-2xl font-bold text-lg hover:border-indigo-300 hover:bg-indigo-50 transition-all shadow-sm">
                             <PlusCircle size={24} />
                             I Found Something
