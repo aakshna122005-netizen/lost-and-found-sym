@@ -122,7 +122,20 @@ router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
     }
 });
 
-// 3. Get Items (Status: Active)
+// 3. Get Single Lost Item
+router.get('/lost/:id', async (req, res) => {
+    try {
+        const item = await prisma.lostItem.findUnique({
+            where: { id: parseInt(req.params.id) }
+        });
+        if (!item) return res.status(404).json({ error: 'Item not found' });
+        res.json(item);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Get Items (Status: Active)
 router.get('/lost', async (req, res) => {
     try {
         const items = await prisma.lostItem.findMany({

@@ -1,68 +1,99 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../utils/api';
-import { Shield, MessageSquare, MapPin } from 'lucide-react';
+import { Shield, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { getVerificationQuestions } from '../utils/verificationQuestions';
 
 const ItemMatches = () => {
     const { itemId } = useParams();
     const [matches, setMatches] = useState([]);
+    const [lostItem, setLostItem] = useState(null);
     const [loading, setLoading] = useState(true);
     const [verifying, setVerifying] = useState(null); // Found Item ID to claim
-    const [answers, setAnswers] = useState({ description: '', marks: '', inventory: '' });
+    const [answers, setAnswers] = useState({});
+    const [submitting, setSubmitting] = useState(false);
+    const [result, setResult] = useState(null); // success | failed
 
     useEffect(() => {
-        const fetchMatches = async () => {
+        const fetchData = async () => {
+            try {
+                // Fetch lost item details to get category
+                const lostRes = await api.get(`items/lost/${itemId}`);
+                setLostItem(lostRes.data);
+            } catch (err) {
+                console.error('Could not fetch lost item:', err);
+            }
+
             try {
                 const res = await api.post(`matches/match/${itemId}`, {});
-                setMatches(res.data.matches); // Expects [{ foundItem, score, details }]
+                setMatches(res.data.matches || []);
             } catch (err) {
-                console.error(err);
+                console.error('Could not fetch matches:', err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchMatches();
+        fetchData();
     }, [itemId]);
 
     const handleClaim = (foundItemId) => {
+        setAnswers({});
+        setResult(null);
         setVerifying(foundItemId);
     };
 
-    const handleAnswerChange = (e) => {
-        setAnswers({ ...answers, [e.target.name]: e.target.value });
+    const handleAnswerChange = (key, value) => {
+        setAnswers(prev => ({ ...prev, [key]: value }));
     };
 
     const submitVerification = async (e) => {
         e.preventDefault();
+        setSubmitting(true);
         try {
             // 1. Init Claim
             const claimRes = await api.post('claims/init', {
-                lostItemId: itemId,
+                lostItemId: parseInt(itemId),
                 foundItemId: verifying
             });
 
-            // 2. Submit Answers
-            await api.post(`/claims/verify/${claimRes.data.id}`, {
+            // 2. Submit Answers with category info
+            const verifyRes = await api.post(`claims/verify/${claimRes.data.id}`, {
                 verificationData: {
-                    detailedDescription: answers.description,
-                    secretMarks: answers.marks,
-                    contentInventory: answers.inventory
+                    category: lostItem?.category || 'Other',
+                    ...answers
                 }
             });
 
-            alert('Verification Submitted! The finder and admin have been notified.');
-            setVerifying(null);
-            setAnswers({ description: '', marks: '', inventory: '' });
+            if (verifyRes.data.claim?.status === 'verification_failed') {
+                setResult('failed');
+            } else {
+                setResult('success');
+            }
         } catch (err) {
             console.error(err);
-            alert('Error submitting claim');
+            setResult('failed');
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-slate-500">Scanning for matches...</div>;
+    const questions = getVerificationQuestions(lostItem?.category || '');
+    const category = lostItem?.category || 'Item';
+
+    if (loading) return <div className="p-8 text-center text-slate-500 animate-pulse">🔍 Scanning for matches...</div>;
 
     return (
         <div className="max-w-4xl mx-auto">
+            {lostItem && (
+                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center gap-3">
+                    <Shield size={20} className="text-indigo-600 flex-shrink-0" />
+                    <div>
+                        <p className="text-sm font-semibold text-indigo-800">Searching for: <span className="font-bold">{lostItem.itemName}</span></p>
+                        <p className="text-xs text-indigo-600">Category: {lostItem.category} · If you click "This is mine", you'll answer <strong>{category}-specific</strong> questions.</p>
+                    </div>
+                </div>
+            )}
+
             <h2 className="text-2xl font-bold text-slate-900 mb-6">Potential Matches Found</h2>
 
             {matches.length === 0 ? (
@@ -94,20 +125,15 @@ const ItemMatches = () => {
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h3 className="text-xl font-bold text-slate-800">{foundItem.category}</h3>
+                                            <h3 className="text-xl font-bold text-slate-800">{foundItem.itemName || foundItem.category}</h3>
                                             <p className="text-slate-500 text-sm flex items-center gap-1 mt-1">
-                                                <MapPin size={16} /> Location: {foundItem.locationFound || 'Nearby'}
+                                                <MapPin size={16} /> Location: {foundItem.locationText || foundItem.locationFound || 'Nearby'}
                                             </p>
                                         </div>
                                         <div className="text-right">
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${score > 70 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                                 {score}% Match
                                             </span>
-                                            <div className="text-xs text-slate-400 mt-1">
-                                                {Object.keys(details).map(k => (
-                                                    <div key={k}>{k}: {details[k]}</div>
-                                                ))}
-                                            </div>
                                         </div>
                                     </div>
 
@@ -117,64 +143,88 @@ const ItemMatches = () => {
                                     </p>
 
                                     <div className="mt-6 flex gap-3">
-                                        <button onClick={() => handleClaim(foundItem.id)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700">
+                                        <button onClick={() => handleClaim(foundItem.id)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
                                             <Shield size={18} /> This is mine
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        )
+                        );
                     })}
                 </div>
             )}
 
+            {/* Verification Modal */}
             {verifying && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-8 rounded-2xl max-w-md w-full">
-                        <h3 className="text-2xl font-bold mb-4">Verify Ownership</h3>
-                        <p className="text-slate-600 mb-4 text-sm">To prevent fraud, please answer specific questions only the owner would know.</p>
-                        <form onSubmit={submitVerification} className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Detailed Description</label>
-                                <textarea
-                                    name="description"
-                                    onChange={handleAnswerChange}
-                                    className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
-                                    required
-                                    placeholder="Brand, size, unique identifiers..."
-                                ></textarea>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Unique Marks</label>
-                                    <input
-                                        type="text"
-                                        name="marks"
-                                        onChange={handleAnswerChange}
-                                        className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
-                                        required
-                                        placeholder="Scratches, stickers, etc."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Internal Contents</label>
-                                    <input
-                                        type="text"
-                                        name="inventory"
-                                        onChange={handleAnswerChange}
-                                        className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
-                                        required
-                                        placeholder="What's inside the item?"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3 mt-8">
-                                <button type="button" onClick={() => setVerifying(null)} className="px-6 py-3 text-slate-500 font-bold text-sm">Cancel</button>
-                                <button type="submit" className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
-                                    Submit for Admin Review
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white p-8 rounded-2xl max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+
+                        {result === 'success' ? (
+                            <div className="text-center py-4">
+                                <CheckCircle size={56} className="mx-auto text-emerald-500 mb-4" />
+                                <h3 className="text-2xl font-bold text-slate-900 mb-2">Submitted for Review! ✅</h3>
+                                <p className="text-slate-600 text-sm mb-6">Your answers have been forwarded to an admin for final approval. You'll be notified once they review your claim.</p>
+                                <button onClick={() => { setVerifying(null); setResult(null); }} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
+                                    Close
                                 </button>
                             </div>
-                        </form>
+                        ) : result === 'failed' ? (
+                            <div className="text-center py-4">
+                                <AlertTriangle size={56} className="mx-auto text-red-500 mb-4" />
+                                <h3 className="text-2xl font-bold text-slate-900 mb-2">Verification Failed ❌</h3>
+                                <p className="text-slate-600 text-sm mb-6">Your answers did not match the original item record. If you believe this is an error, please contact support. The item search will continue.</p>
+                                <button onClick={() => { setVerifying(null); setResult(null); }} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700">
+                                    Close
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-6">
+                                    <h3 className="text-2xl font-bold text-slate-900">Verify Ownership</h3>
+                                    <p className="text-slate-500 text-sm mt-1">
+                                        Answer these <span className="font-semibold text-indigo-600">{category}-specific</span> questions. Only the real owner would know these details.
+                                    </p>
+                                </div>
+
+                                <form onSubmit={submitVerification} className="space-y-5">
+                                    {questions.map((q, i) => (
+                                        <div key={q.key}>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
+                                                Q{i + 1}. {q.label} {q.required && <span className="text-red-400">*</span>}
+                                            </label>
+                                            {q.type === 'textarea' ? (
+                                                <textarea
+                                                    onChange={e => handleAnswerChange(q.key, e.target.value)}
+                                                    className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none resize-none h-20"
+                                                    required={q.required}
+                                                    placeholder={q.placeholder}
+                                                />
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    onChange={e => handleAnswerChange(q.key, e.target.value)}
+                                                    className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-all outline-none"
+                                                    required={q.required}
+                                                    placeholder={q.placeholder}
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                    <div className="flex justify-end gap-3 mt-6">
+                                        <button type="button" onClick={() => setVerifying(null)} className="px-6 py-3 text-slate-500 font-bold text-sm hover:text-slate-700">
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={submitting}
+                                            className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-60"
+                                        >
+                                            {submitting ? 'Submitting...' : 'Submit for Review →'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
