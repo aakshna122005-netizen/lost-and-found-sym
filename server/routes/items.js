@@ -18,8 +18,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 // Safe image processing — NEVER crashes the server
-async function processImage(filePath, maskImage) {
-    const relativePath = 'uploads/originals/' + path.basename(filePath);
+async function processImage(absoluteFilePath, maskImage) {
+    const relativePath = 'uploads/originals/' + path.basename(absoluteFilePath);
 
     if (!maskImage) {
         return { imageUrl: relativePath, originalImageUrl: relativePath };
@@ -28,23 +28,22 @@ async function processImage(filePath, maskImage) {
     try {
         const { generateMaskedImage, encryptFile } = require('../utils/imageProcessor');
 
-        // Generate blurred version
-        const maskedRelPath = await generateMaskedImage(relativePath);
+        // Generate blurred version — pass absolute path
+        const maskedRelPath = await generateMaskedImage(absoluteFilePath);
 
-        // Encrypt original
-        const encPath = filePath + '.enc';
-        encryptFile(filePath, encPath);
+        // Encrypt original synchronously
+        const encAbsPath = absoluteFilePath + '.enc';
+        encryptFile(absoluteFilePath, encAbsPath);
 
-        // Remove plain original after encryption
-        try { fs.unlinkSync(filePath); } catch (e) { /* file may already be gone */ }
+        // Remove plain original after successful encryption
+        try { fs.unlinkSync(absoluteFilePath); } catch (e) { /* already gone */ }
 
         return {
             imageUrl: maskedRelPath,
-            originalImageUrl: 'uploads/originals/' + path.basename(encPath)
+            originalImageUrl: 'uploads/originals/' + path.basename(encAbsPath)
         };
     } catch (err) {
         console.error('⚠️  Image processing failed (using original):', err.message);
-        // Fallback: just use the original image unmasked — don't crash
         return { imageUrl: relativePath, originalImageUrl: relativePath };
     }
 }

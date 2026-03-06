@@ -4,25 +4,28 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
 
-const ENCRYPTION_KEY = process.env.CHAT_ENCRYPTION_KEY || 'default_32_byte_key_for_testing_purposes_only!!'; // Should be 32 bytes
+// Use first 32 bytes of key as utf8 (consistent with imageProcessor)
+const CHAT_KEY = Buffer.from(
+    (process.env.CHAT_ENCRYPTION_KEY || 'default_32_byte_chat_key_00000000').slice(0, 32),
+    'utf8'
+);
 const IV_LENGTH = 16;
 
 function encrypt(text) {
-    let iv = crypto.randomBytes(IV_LENGTH);
-    let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', CHAT_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(Buffer.from(text)), cipher.final()]);
     return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
 function decrypt(text) {
-    let textParts = text.split(':');
-    let iv = Buffer.from(textParts.shift(), 'hex');
-    let encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    try {
+        const [ivHex, ...rest] = text.split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const encryptedText = Buffer.from(rest.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', CHAT_KEY, iv);
+        return Buffer.concat([decipher.update(encryptedText), decipher.final()]).toString();
+    } catch { return '[encrypted message]'; }
 }
 
 // 1. Send a message
