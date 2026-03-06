@@ -121,7 +121,7 @@ model Claim {
   foundItem        FoundItem     @relation(fields: [foundItemId], references: [id])
   claimerId        Int
   claimer          User          @relation("Claimer", fields: [claimerId], references: [id])
-  status           String        @default("verification_pending") // verification_pending, verification_failed, admin_review, approved, rejected, completed
+  status           String        @default("verification_pending") // verification_pending, verification_failed, finder_review, approved, rejected, completed
   verificationData String?       
   claimProof       String?       
   verificationAttempts Int       @default(0)

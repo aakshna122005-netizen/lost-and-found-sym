@@ -23,30 +23,21 @@ router.post('/init', verifyToken, async (req, res) => {
             }
         });
 
-        // Notify finder
-        const { createNotification } = require('../utils/notificationService');
-        await createNotification(foundItem.finderId, {
-            title: 'Action Required: Verification Pending',
-            message: `Someone is attempting to verify ownership of the ${foundItem.itemName}.`,
-            type: 'claim',
-            link: `/claim/${claim.id}`
-        });
-
         res.json(claim);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. Submit Verification Details (Moves to Admin Review)
+// 2. Submit Verification Answers → goes to FINDER for review
 router.post('/verify/:id', verifyToken, enforceStateMachine('claim'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { verificationData, claimProof } = req.body;
+        const { verificationData } = req.body;
 
         const claim = await prisma.claim.findUnique({
             where: { id: parseInt(id) },
-            include: { foundItem: true }
+            include: { foundItem: true, lostItem: true }
         });
 
         if (!claim || claim.claimerId !== req.user.id) {
@@ -57,69 +48,117 @@ router.post('/verify/:id', verifyToken, enforceStateMachine('claim'), async (req
             return res.status(400).json({ error: 'Verification cannot be submitted in current state.' });
         }
 
-        // Automatic Verification Logic
-        let isMatch = true;
-        if (claim.lostItem && claim.lostItem.uniqueMarks && verificationData.secretMarks) {
-            const marksL = claim.lostItem.uniqueMarks.toLowerCase();
-            const marksV = verificationData.secretMarks.toLowerCase();
-            const wordsL = marksL.split(/\\W+/).filter(w => w.length > 3);
-            if (wordsL.length > 0) {
-                const hasCommon = wordsL.some(w => marksV.includes(w));
-                if (!hasCommon) isMatch = false;
-            }
-        }
-
-        if (!isMatch) {
-            await prisma.claim.update({
-                where: { id: parseInt(id) },
-                data: { status: 'verification_failed', verificationData: JSON.stringify(verificationData) }
-            });
-            await prisma.foundItem.update({
-                where: { id: claim.foundItemId },
-                data: { status: 'active' }
-            });
-            if (claim.lostItemId) {
-                await prisma.lostItem.update({
-                    where: { id: claim.lostItemId },
-                    data: { status: 'active' }
-                });
-            }
-            return res.json({ message: 'Verification failed. Answers did not match the original record. Search will continue.', claim: { status: 'verification_failed' } });
-        }
-
+        // Move to finder_review — finder decides whether to enable chat
         const updatedClaim = await prisma.claim.update({
             where: { id: parseInt(id) },
             data: {
                 verificationData: JSON.stringify(verificationData),
-                claimProof: claimProof || null,
-                status: 'admin_review'
+                status: 'finder_review'
             }
         });
 
-        // Notify Admins
-        const admins = await prisma.user.findMany({ where: { role: 'admin' } });
+        // Notify the finder
         const { createNotification } = require('../utils/notificationService');
-        for (const admin of admins) {
-            await createNotification(admin.id, {
-                title: 'New Admin Review Required',
-                message: `New proof submitted for item ${claim.foundItem.itemName}.`,
-                type: 'admin',
-                link: `/admin/claims`
-            });
-        }
+        await createNotification(claim.foundItem.finderId, {
+            title: '📋 Someone Claims Your Found Item',
+            message: `A user has submitted verification answers for your found item "${claim.foundItem.itemName || claim.foundItem.category}". Review their answers and decide whether to enable chat.`,
+            type: 'claim',
+            link: `/dashboard`
+        });
 
-        res.json({ message: 'Submitted for admin review.', claim: updatedClaim });
+        res.json({ message: 'Verification answers sent to the finder for review.', claim: updatedClaim });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 4. Get My Claims
+// 3. FINDER ACTION — Approve (enable chat) or Reject a claim
+router.post('/:id/finder-action', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { action } = req.body; // 'approve' or 'reject'
+
+        const claim = await prisma.claim.findUnique({
+            where: { id: parseInt(id) },
+            include: { foundItem: true, lostItem: true, claimer: { select: { id: true, username: true } } }
+        });
+
+        if (!claim) return res.status(404).json({ error: 'Claim not found' });
+
+        // Only the finder of the found item can take action
+        if (claim.foundItem.finderId !== req.user.id) {
+            return res.status(403).json({ error: 'Only the finder can take action on this claim.' });
+        }
+
+        if (claim.status !== 'finder_review') {
+            return res.status(400).json({ error: 'This claim is not pending your review.' });
+        }
+
+        const { createNotification } = require('../utils/notificationService');
+
+        if (action === 'approve') {
+            // Reveal image and enable chat
+            await prisma.foundItem.update({
+                where: { id: claim.foundItemId },
+                data: { imageVisibilityStatus: 'revealed', status: 'match_found' }
+            });
+            if (claim.lostItemId) {
+                await prisma.lostItem.update({
+                    where: { id: claim.lostItemId },
+                    data: { status: 'match_found' }
+                });
+            }
+            await prisma.claim.update({
+                where: { id: parseInt(id) },
+                data: { status: 'approved' }
+            });
+
+            // Notify the claimer
+            await createNotification(claim.claimerId, {
+                title: '🎉 Finder Approved Your Claim!',
+                message: `The finder has reviewed your answers and approved your claim. Secure chat is now unlocked!`,
+                type: 'claim',
+                link: `/claim/${claim.id}`
+            });
+
+            return res.json({ message: 'Claim approved. Chat is now enabled.', status: 'approved' });
+        }
+
+        if (action === 'reject') {
+            await prisma.claim.update({
+                where: { id: parseInt(id) },
+                data: { status: 'rejected' }
+            });
+
+            // Reset items to active
+            await prisma.foundItem.update({ where: { id: claim.foundItemId }, data: { status: 'active' } });
+            if (claim.lostItemId) {
+                await prisma.lostItem.update({ where: { id: claim.lostItemId }, data: { status: 'active' } });
+            }
+
+            // Notify the claimer
+            await createNotification(claim.claimerId, {
+                title: '❌ Claim Rejected by Finder',
+                message: `The finder has reviewed your answers and rejected your claim. You may try again or report this issue.`,
+                type: 'claim',
+                link: `/claim/${claim.id}`
+            });
+
+            return res.json({ message: 'Claim rejected.', status: 'rejected' });
+        }
+
+        res.status(400).json({ error: 'Invalid action. Use approve or reject.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Get claims made by the logged-in user (claimer side)
 router.get('/my-claims', verifyToken, async (req, res) => {
     try {
         const claims = await prisma.claim.findMany({
             where: { claimerId: req.user.id },
-            include: { foundItem: true },
+            include: { foundItem: true, lostItem: true },
             orderBy: { createdAt: 'desc' }
         });
         res.json(claims);
@@ -128,6 +167,28 @@ router.get('/my-claims', verifyToken, async (req, res) => {
     }
 });
 
+// 5. Get claims on items the logged-in user FOUND (finder side)
+router.get('/finder-claims', verifyToken, async (req, res) => {
+    try {
+        const claims = await prisma.claim.findMany({
+            where: {
+                foundItem: { finderId: req.user.id },
+                status: { in: ['finder_review', 'approved', 'rejected'] }
+            },
+            include: {
+                foundItem: true,
+                lostItem: true,
+                claimer: { select: { id: true, username: true, email: true, trustScore: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(claims);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 6. Get single claim details
 router.get('/:claimId', verifyToken, async (req, res) => {
     try {
         const { claimId } = req.params;
@@ -142,7 +203,6 @@ router.get('/:claimId', verifyToken, async (req, res) => {
 
         if (!claim) return res.status(404).json({ error: 'Claim not found' });
 
-        // Security: Restrict access
         const isParticipant = claim.claimerId === req.user.id || claim.foundItem.finderId === req.user.id;
         const isAdmin = req.user.role === 'admin';
 
