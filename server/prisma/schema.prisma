@@ -25,6 +25,7 @@ model User {
   resetPasswordExpires DateTime?
   loginSessions   LoginSession[]
   notifications   Notification[]
+  sentMessages    ChatMessage[]  @relation("SentMessages")
 }
 
 model LoginSession {
@@ -134,6 +135,7 @@ model ChatMessage {
   claimId   Int
   claim     Claim    @relation(fields: [claimId], references: [id])
   senderId  Int 
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
   content   String
   timestamp DateTime @default(now())
 }

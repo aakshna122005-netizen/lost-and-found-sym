@@ -84,12 +84,17 @@ router.get('/:claimId', verifyToken, async (req, res) => {
 
         const messages = await prisma.chatMessage.findMany({
             where: { claimId: parseInt(claimId) },
+            include: { sender: { select: { id: true, username: true } } },
             orderBy: { timestamp: 'asc' }
         });
 
         const decryptedMessages = messages.map(msg => ({
-            ...msg,
-            content: decrypt(msg.content)
+            id: msg.id,
+            claimId: msg.claimId,
+            senderId: msg.senderId,
+            senderName: msg.sender?.username || 'Unknown',
+            content: decrypt(msg.content),
+            timestamp: msg.timestamp
         }));
 
         res.json(decryptedMessages);

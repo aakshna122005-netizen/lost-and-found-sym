@@ -102,7 +102,7 @@ const Chat = ({ claimId }) => {
                                     {msg.content}
                                 </div>
                                 <span className="text-[10px] text-slate-400 mt-1 mx-2">
-                                    {isMe ? 'You' : 'Other'} · {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {isMe ? '🟦 You' : '🟩 Other person'} · {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     {msg.pending && ' · sending...'}
                                 </span>
                             </div>

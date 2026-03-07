@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Shield, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shield, MapPin, CheckCircle, AlertTriangle, MessageCircle } from 'lucide-react';
 import { getVerificationQuestions } from '../utils/verificationQuestions';
 
 const ItemMatches = () => {
     const { itemId } = useParams();
+    const navigate = useNavigate();
     const [matches, setMatches] = useState([]);
     const [lostItem, setLostItem] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [verifying, setVerifying] = useState(null); // Found Item ID to claim
+    const [verifying, setVerifying] = useState(null);
     const [answers, setAnswers] = useState({});
     const [submitting, setSubmitting] = useState(false);
-    const [result, setResult] = useState(null); // success | failed
+    const [result, setResult] = useState(null);
+    const [createdClaimId, setCreatedClaimId] = useState(null); // track the new claim
 
     useEffect(() => {
         const fetchData = async () => {
@@ -55,9 +57,11 @@ const ItemMatches = () => {
                 lostItemId: parseInt(itemId),
                 foundItemId: verifying
             });
+            const newClaimId = claimRes.data.id;
+            setCreatedClaimId(newClaimId);
 
             // 2. Submit Answers with category info
-            const verifyRes = await api.post(`claims/verify/${claimRes.data.id}`, {
+            const verifyRes = await api.post(`claims/verify/${newClaimId}`, {
                 verificationData: {
                     category: lostItem?.category || 'Other',
                     ...answers
@@ -162,11 +166,22 @@ const ItemMatches = () => {
                         {result === 'success' ? (
                             <div className="text-center py-4">
                                 <CheckCircle size={56} className="mx-auto text-emerald-500 mb-4" />
-                                <h3 className="text-2xl font-bold text-slate-900 mb-2">Submitted for Review! ✅</h3>
-                                <p className="text-slate-600 text-sm mb-6">Your answers have been sent to the finder for review. You'll be notified once they decide to enable the chat.</p>
-                                <button onClick={() => { setVerifying(null); setResult(null); }} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
-                                    Close
-                                </button>
+                                <h3 className="text-2xl font-bold text-slate-900 mb-2">Sent to Finder! ✅</h3>
+                                <p className="text-slate-600 text-sm mb-6">
+                                    Your answers have been sent to the finder for review. You'll be notified once they enable the chat.
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={() => navigate(`/claim/${createdClaimId}`)}
+                                        className="flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700"
+                                    >
+                                        <MessageCircle size={18} />
+                                        Track Claim &amp; Chat
+                                    </button>
+                                    <button onClick={() => { setVerifying(null); setResult(null); }} className="text-slate-400 text-sm hover:text-slate-600">
+                                        Close
+                                    </button>
+                                </div>
                             </div>
                         ) : result === 'failed' ? (
                             <div className="text-center py-4">
