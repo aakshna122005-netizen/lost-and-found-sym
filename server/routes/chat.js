@@ -46,9 +46,11 @@ router.post('/:claimId', verifyToken, async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized to chat' });
         }
 
-        // Production Rule: Chat is ONLY unlocked when status is 'approved'
+        // Chat is ONLY unlocked when finder approves (status: approved or completed)
         if (claim.status !== 'approved' && claim.status !== 'completed') {
-            return res.status(403).json({ error: 'Secure chat is locked until admin approval of ownership proof.' });
+            return res.status(403).json({
+                error: `Chat is locked. The finder needs to approve your claim first. Current status: ${claim.status}`
+            });
         }
 
         const encryptedContent = encrypt(content);
@@ -61,7 +63,14 @@ router.post('/:claimId', verifyToken, async (req, res) => {
             }
         });
 
-        res.json({ ...message, content });
+        res.json({
+            id: message.id,
+            claimId: message.claimId,
+            senderId: message.senderId,
+            senderName: req.user.username || 'You',
+            content,  // Return unencrypted content directly
+            timestamp: message.timestamp
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

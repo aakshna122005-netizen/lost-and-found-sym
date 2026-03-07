@@ -37,12 +37,14 @@ const Chat = ({ claimId }) => {
     const handleSend = async (e) => {
         e.preventDefault();
         if (!newMessage.trim() || sending) return;
+        if (!claimId) { alert('Invalid claim. Please refresh the page.'); return; }
 
         setSending(true);
+        const msgText = newMessage;
         const optimisticMsg = {
-            id: Date.now(),
+            id: `opt-${Date.now()}`,
             senderId: user?.id,
-            content: newMessage,
+            content: msgText,
             timestamp: new Date().toISOString(),
             pending: true
         };
@@ -50,13 +52,15 @@ const Chat = ({ claimId }) => {
         setNewMessage('');
 
         try {
-            await api.post(`chat/${claimId}`, { content: optimisticMsg.content });
-            await fetchMessages(); // Refresh to get server-confirmed messages
+            const res = await api.post(`chat/${claimId}`, { content: msgText });
+            // Replace optimistic msg with real confirmed message
+            setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? res.data : m));
         } catch (err) {
-            // Remove optimistic message on failure
+            // Remove optimistic message and restore text on failure
             setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
-            setNewMessage(optimisticMsg.content);
-            alert(err.response?.data?.error || 'Failed to send message');
+            setNewMessage(msgText);
+            const errMsg = err.response?.data?.error || 'Failed to send message';
+            alert(errMsg);
         } finally {
             setSending(false);
         }
