@@ -163,7 +163,7 @@ const ItemMatches = () => {
                             <div className="text-center py-4">
                                 <CheckCircle size={56} className="mx-auto text-emerald-500 mb-4" />
                                 <h3 className="text-2xl font-bold text-slate-900 mb-2">Submitted for Review! ✅</h3>
-                                <p className="text-slate-600 text-sm mb-6">Your answers have been forwarded to an admin for final approval. You'll be notified once they review your claim.</p>
+                                <p className="text-slate-600 text-sm mb-6">Your answers have been sent to the finder for review. You'll be notified once they decide to enable the chat.</p>
                                 <button onClick={() => { setVerifying(null); setResult(null); }} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
                                     Close
                                 </button>
@@ -219,7 +219,7 @@ const ItemMatches = () => {
                                             disabled={submitting}
                                             className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-60"
                                         >
-                                            {submitting ? 'Submitting...' : 'Submit for Review →'}
+                                            {submitting ? 'Sending...' : 'Send to Finder →'}
                                         </button>
                                     </div>
                                 </form>
