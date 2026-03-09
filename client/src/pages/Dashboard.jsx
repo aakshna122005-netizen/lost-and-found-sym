@@ -43,7 +43,9 @@ const Dashboard = () => {
         }
     };
 
-    useEffect(() => { fetchDashboardData(); }, [user.id]);
+    useEffect(() => {
+        if (user?.id) fetchDashboardData();
+    }, [user?.id]);
 
     const handleFinderAction = async (claimId, action) => {
         setActionLoading(claimId + action);

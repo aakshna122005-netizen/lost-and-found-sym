@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import LocationPicker from '../components/ui/LocationPicker';
+import { Package, ShieldCheck } from 'lucide-react';
 
 const ReportFound = () => {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ const ReportFound = () => {
     const [location, setLocation] = useState(null);
     const [image, setImage] = useState(null);
     const [maskImage, setMaskImage] = useState(true);
+    const [submittedItem, setSubmittedItem] = useState(null);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,14 +42,42 @@ const ReportFound = () => {
             const res = await api.post('items/found', data, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            alert('Thank you! Found item reported successfully.');
-            navigate('/');
+            setSubmittedItem(res.data);
         } catch (err) {
             console.error('Submission Error:', err);
             const errMsg = err.response?.data?.error || err.message || 'Error submitting report';
             alert(`Error submitting report: ${errMsg}`);
         }
     };
+
+    if (submittedItem) {
+        return (
+            <div className="max-w-xl mx-auto bg-white p-10 rounded-3xl shadow-lg border border-emerald-100 text-center mt-10">
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <ShieldCheck size={40} className="text-emerald-600" />
+                </div>
+                <h1 className="text-3xl font-extrabold text-slate-900 mb-4">Item Reported Successfully!</h1>
+                <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
+                    Thank you for reporting the found <b>{submittedItem.itemName}</b>! Your integrity helps our community. We have securely saved its details and will notify you when the owner tries to claim it.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
+                    >
+                        <Package size={18} /> Go to Dashboard
+                    </button>
+                    <button
+                        onClick={() => setSubmittedItem(null)}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <ShieldCheck size={18} /> Report Another
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
