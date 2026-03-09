@@ -37,8 +37,8 @@ async function getClaimForChat(claimId, userId) {
 
     if (!claim) return { error: 'Claim not found', status: 404 };
 
-    const isClaimer = claim.claimerId === userId;
-    const isFinder = claim.foundItem.finderId === userId;
+    const isClaimer = claim.claimerId === Number(userId);
+    const isFinder = claim.foundItem.finderId === Number(userId);
 
     if (!isClaimer && !isFinder) {
         return { error: 'Unauthorized to access this chat', status: 403 };
@@ -73,7 +73,7 @@ router.post('/:claimId', verifyToken, async (req, res) => {
         const message = await prisma.chatMessage.create({
             data: {
                 claimId: parseInt(claimId),
-                senderId: req.user.id,
+                senderId: Number(req.user.id),
                 content: encryptedContent
             },
             include: {
