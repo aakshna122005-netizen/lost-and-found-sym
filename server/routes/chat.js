@@ -28,38 +28,56 @@ function decrypt(text) {
     } catch { return '[encrypted message]'; }
 }
 
-// 1. Send a message
+// Helper: verify participant and chat-unlock status
+async function getClaimForChat(claimId, userId) {
+    const claim = await prisma.claim.findUnique({
+        where: { id: parseInt(claimId) },
+        include: { foundItem: true }
+    });
+
+    if (!claim) return { error: 'Claim not found', status: 404 };
+
+    const isClaimer = claim.claimerId === userId;
+    const isFinder = claim.foundItem.finderId === userId;
+
+    if (!isClaimer && !isFinder) {
+        return { error: 'Unauthorized to access this chat', status: 403 };
+    }
+
+    // Chat only works once finder has approved (status: approved or completed)
+    if (claim.status !== 'approved' && claim.status !== 'completed') {
+        return {
+            error: `Chat is locked. The finder needs to approve the claim first. Current status: ${claim.status}`,
+            status: 403
+        };
+    }
+
+    return { claim, isClaimer, isFinder };
+}
+
+// 1. Send a message — BOTH finder and claimer can send once approved
 router.post('/:claimId', verifyToken, async (req, res) => {
     try {
         const { claimId } = req.params;
         const { content } = req.body;
 
-        const claim = await prisma.claim.findUnique({
-            where: { id: parseInt(claimId) },
-            include: { foundItem: true }
-        });
-
-        if (!claim) return res.status(404).json({ error: 'Claim not found' });
-
-        // Access check: Only Finder or Claimer
-        if (claim.claimerId !== req.user.id && claim.foundItem.finderId !== req.user.id) {
-            return res.status(403).json({ error: 'Unauthorized to chat' });
+        if (!content || !content.trim()) {
+            return res.status(400).json({ error: 'Message content cannot be empty' });
         }
 
-        // Chat is ONLY unlocked when finder approves (status: approved or completed)
-        if (claim.status !== 'approved' && claim.status !== 'completed') {
-            return res.status(403).json({
-                error: `Chat is locked. The finder needs to approve your claim first. Current status: ${claim.status}`
-            });
-        }
+        const result = await getClaimForChat(claimId, req.user.id);
+        if (result.error) return res.status(result.status).json({ error: result.error });
 
-        const encryptedContent = encrypt(content);
+        const encryptedContent = encrypt(content.trim());
 
         const message = await prisma.chatMessage.create({
             data: {
                 claimId: parseInt(claimId),
                 senderId: req.user.id,
                 content: encryptedContent
+            },
+            include: {
+                sender: { select: { id: true, username: true } }
             }
         });
 
@@ -67,8 +85,8 @@ router.post('/:claimId', verifyToken, async (req, res) => {
             id: message.id,
             claimId: message.claimId,
             senderId: message.senderId,
-            senderName: req.user.username || 'You',
-            content,  // Return unencrypted content directly
+            senderName: message.sender?.username || 'Unknown',
+            content: content.trim(), // Return unencrypted content to sender
             timestamp: message.timestamp
         });
     } catch (err) {
@@ -76,23 +94,24 @@ router.post('/:claimId', verifyToken, async (req, res) => {
     }
 });
 
-// 2. Get messages
+// 2. Get messages — supports ?after=<lastMessageId> for incremental polling
+//    Both finder and claimer can read messages once chat is unlocked
 router.get('/:claimId', verifyToken, async (req, res) => {
     try {
         const { claimId } = req.params;
+        const { after } = req.query; // optional: only fetch messages after this ID
 
-        const claim = await prisma.claim.findUnique({
-            where: { id: parseInt(claimId) },
-            include: { foundItem: true }
-        });
+        const result = await getClaimForChat(claimId, req.user.id);
+        if (result.error) return res.status(result.status).json({ error: result.error });
 
-        if (!claim) return res.status(404).json({ error: 'Claim not found' });
-
-        const isParticipant = (claim.claimerId === req.user.id || claim.foundItem.finderId === req.user.id);
-        if (!isParticipant) return res.status(403).json({ error: 'Access denied' });
+        // Build query — if `after` is provided, only return newer messages
+        const whereClause = { claimId: parseInt(claimId) };
+        if (after && !isNaN(parseInt(after))) {
+            whereClause.id = { gt: parseInt(after) };
+        }
 
         const messages = await prisma.chatMessage.findMany({
-            where: { claimId: parseInt(claimId) },
+            where: whereClause,
             include: { sender: { select: { id: true, username: true } } },
             orderBy: { timestamp: 'asc' }
         });
