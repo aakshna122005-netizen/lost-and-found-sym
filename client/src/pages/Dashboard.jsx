@@ -17,15 +17,14 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const [lostRes, foundRes, claimsRes, finderClaimsRes] = await Promise.all([
-                api.get('items/lost'),
-                api.get('items/found'),
+            const [myItemsRes, claimsRes, finderClaimsRes] = await Promise.all([
+                api.get('items/my-items'),
                 api.get('claims/my-claims'),
                 api.get('claims/finder-claims')
             ]);
 
-            const myLost = lostRes.data.filter(i => i.userId === user.id);
-            const myFound = foundRes.data.filter(i => i.finderId === user.id);
+            const myLost = myItemsRes.data.lost || [];
+            const myFound = myItemsRes.data.found || [];
             const fc = finderClaimsRes.data || [];
 
             setRecentLost(myLost);

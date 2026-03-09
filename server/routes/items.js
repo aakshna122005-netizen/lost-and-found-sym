@@ -90,6 +90,15 @@ router.post('/lost', verifyToken, upload.single('image'), async (req, res) => {
         const { findMatches } = require('../utils/aiMatcher');
         findMatches(item, 'lost').catch(err => console.error('Matching Error:', err.message));
 
+        // Notify the user immediately
+        const { createNotification } = require('../utils/notificationService');
+        await createNotification(req.user.id, {
+            title: '📡 Searching for Matches...',
+            message: `Your lost report for "${itemName}" has been posted. We will notify you when a match is found.`,
+            type: 'system',
+            link: '/dashboard'
+        });
+
         res.json({ success: true, ...item });
     } catch (err) {
         console.error('[POST /lost] Error:', err.message);
@@ -133,6 +142,15 @@ router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
         const { findMatches } = require('../utils/aiMatcher');
         findMatches(item, 'found').catch(err => console.error('Matching Error:', err.message));
 
+        // Notify the user immediately
+        const { createNotification } = require('../utils/notificationService');
+        await createNotification(req.user.id, {
+            title: '👁️ Item Listed Successfully',
+            message: `Thank you for reporting the found "${itemName}". We will notify you when the owner claims it.`,
+            type: 'system',
+            link: '/dashboard'
+        });
+
         res.json({ success: true, ...item });
     } catch (err) {
         console.error('[POST /found] Error:', err.message);
@@ -169,6 +187,23 @@ router.get('/found', async (req, res) => {
     try {
         const items = await prisma.foundItem.findMany({ where: { status: 'active' } });
         res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /my-items - All items reported by logged-in user
+router.get('/my-items', verifyToken, async (req, res) => {
+    try {
+        const myLost = await prisma.lostItem.findMany({
+            where: { userId: req.user.id },
+            orderBy: { createdAt: 'desc' }
+        });
+        const myFound = await prisma.foundItem.findMany({
+            where: { finderId: req.user.id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ lost: myLost, found: myFound });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
