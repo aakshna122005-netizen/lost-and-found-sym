@@ -96,13 +96,21 @@ router.post('/:claimId', verifyToken, async (req, res) => {
 
 // 2. Get messages — supports ?after=<lastMessageId> for incremental polling
 //    Both finder and claimer can read messages once chat is unlocked
-router.get('/:claimId', verifyToken, async (req, res) => {
+router.get('/:claimId', async (req, res) => {
     try {
         const { claimId } = req.params;
         const { after } = req.query; // optional: only fetch messages after this ID
 
-        const result = await getClaimForChat(claimId, req.user.id);
-        if (result.error) return res.status(result.status).json({ error: result.error });
+        const claim = await prisma.claim.findUnique({
+            where: { id: parseInt(claimId) }
+        });
+
+        if (!claim) return res.status(404).json({ error: 'Claim not found' });
+
+        // Chat only works once finder has approved (status: approved or completed)
+        if (claim.status !== 'approved' && claim.status !== 'completed') {
+            return res.status(403).json({ error: 'Chat is locked. The finder needs to approve the claim first.' });
+        }
 
         // Build query — if `after` is provided, only return newer messages
         const whereClause = { claimId: parseInt(claimId) };

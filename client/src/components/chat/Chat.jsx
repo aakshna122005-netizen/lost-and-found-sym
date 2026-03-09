@@ -147,8 +147,8 @@ const Chat = ({ claimId }) => {
                     </div>
                 ) : (
                     messages.map((msg, i) => {
-                        const isMe = msg.senderId === user?.id;
-                        const showName = !isMe && (i === 0 || messages[i - 1].senderId !== msg.senderId);
+                        const isMe = Number(msg.senderId) === Number(user?.id);
+                        const showName = !isMe && (i === 0 || Number(messages[i - 1].senderId) !== Number(msg.senderId));
 
                         return (
                             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
