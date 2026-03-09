@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { Package, Shield, Search, ChevronRight, Clock, CheckCircle2, XCircle, MessageCircle, Eye, UserCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [stats, setStats] = useState({ lostCount: 0, foundCount: 0, claimCount: 0, pendingReviews: 0 });
     const [recentLost, setRecentLost] = useState([]);
     const [recentClaims, setRecentClaims] = useState([]);
@@ -49,8 +50,13 @@ const Dashboard = () => {
         setActionLoading(claimId + action);
         try {
             await api.post(`claims/${claimId}/finder-action`, { action });
-            await fetchDashboardData();
-            setExpandedClaim(null);
+            if (action === 'approve') {
+                // Take the finder directly to the chat page
+                navigate(`/claim/${claimId}`);
+            } else {
+                await fetchDashboardData();
+                setExpandedClaim(null);
+            }
         } catch (err) {
             alert('Error: ' + (err.response?.data?.error || err.message));
         } finally {
