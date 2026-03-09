@@ -210,3 +210,4 @@ const Chat = ({ claimId }) => {
 };
 
 export default Chat;
+
