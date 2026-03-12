@@ -18,18 +18,22 @@ const ReportFound = () => {
     });
     const [location, setLocation] = useState(null);
     const [image, setImage] = useState(null);
-    const [maskImage, setMaskImage] = useState(true);
+    const [showMaskModal, setShowMaskModal] = useState(false);
     const [submittedItem, setSubmittedItem] = useState(null);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!image) return alert('Image is mandatory for found items');
         if (!location) return alert('Please select a specific location on the map where the item was found.');
+        setShowMaskModal(true);
+    };
 
+    const processSubmit = async (shouldMask) => {
+        setShowMaskModal(false);
         const data = new FormData();
         Object.keys(formData).forEach(key => {
             if (formData[key]) data.append(key, formData[key]);
@@ -38,7 +42,7 @@ const ReportFound = () => {
         data.append('lat', location.lat);
         data.append('lng', location.lng);
         data.append('image', image);
-        data.append('maskImage', maskImage);
+        data.append('maskImage', shouldMask);
 
         try {
             const res = await api.post('items/found', data, {
@@ -174,17 +178,37 @@ const ReportFound = () => {
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Image (Mandatory)</label>
                     <input type="file" required onChange={(e) => setImage(e.target.files[0])} className="w-full" />
-
-                    <div className="flex items-center gap-2 mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-                        <input type="checkbox" id="maskImage" checked={maskImage} onChange={(e) => setMaskImage(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500" />
-                        <label htmlFor="maskImage" className="text-sm font-medium text-emerald-900">Mask image for privacy?</label>
-                    </div>
                 </div>
 
                 <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition-colors">
                     Report Found Item
                 </button>
             </form>
+
+            {showMaskModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <ShieldCheck size={32} className="text-emerald-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">Privacy Masking</h3>
+                        <p className="text-sm text-slate-500 mb-6">
+                            Do you want to mask (blur) your image publicly? This ensures the real owner must verify it and protects against fraudulent claims.
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button type="button" onClick={() => processSubmit(true)} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition">
+                                Yes, Mask Image
+                            </button>
+                            <button type="button" onClick={() => processSubmit(false)} className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition">
+                                No, Keep Public
+                            </button>
+                            <button type="button" onClick={() => setShowMaskModal(false)} className="w-full py-3 text-slate-400 font-medium hover:text-slate-600 transition mt-2">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
