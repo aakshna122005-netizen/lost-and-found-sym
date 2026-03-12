@@ -51,6 +51,10 @@ echo "Starting AI Service on port 8000..."\n\
 cd /app/ai_service\n\
 uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
 \n\
+echo "Applying database migrations..."\n\
+cd /app/server\n\
+npx prisma migrate deploy\n\
+\n\
 echo "Starting Node JS Server..."\n\
 cd /app/server\n\
 node index.js\n\

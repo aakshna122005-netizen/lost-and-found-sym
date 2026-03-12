@@ -67,24 +67,51 @@ router.post('/lost', verifyToken, upload.single('image'), async (req, res) => {
             originalImageUrl = result.originalImageUrl;
         }
 
-        const item = await prisma.lostItem.create({
-            data: {
-                userId: req.user.id,
-                itemName,
-                category,
-                color: color || null,
-                material: material || null,
-                dateLost: new Date(dateLost),
-                locationText,
-                lat: parseFloat(lat),
-                lng: parseFloat(lng),
-                description: description || null,
-                uniqueMarks: uniqueMarks || null,
-                imageUrl,
-                originalImageUrl,
-                status: 'active'
+        let item;
+        try {
+            item = await prisma.lostItem.create({
+                data: {
+                    userId: req.user.id,
+                    itemName,
+                    category,
+                    color: color || null,
+                    material: material || null,
+                    dateLost: new Date(dateLost),
+                    locationText,
+                    lat: parseFloat(lat),
+                    lng: parseFloat(lng),
+                    description: description || null,
+                    uniqueMarks: uniqueMarks || null,
+                    imageUrl,
+                    originalImageUrl,
+                    status: 'active'
+                }
+            });
+        } catch (dbErr) {
+            // Fallback for when migrations haven't run/failed
+            if (dbErr.message.includes('originalImageUrl') && dbErr.message.includes('current database')) {
+                console.warn('⚠️  Database schema out of sync. Falling back to simple item creation.');
+                item = await prisma.lostItem.create({
+                    data: {
+                        userId: req.user.id,
+                        itemName,
+                        category,
+                        color: color || null,
+                        material: material || null,
+                        dateLost: new Date(dateLost),
+                        locationText,
+                        lat: parseFloat(lat),
+                        lng: parseFloat(lng),
+                        description: description || null,
+                        uniqueMarks: uniqueMarks || null,
+                        imageUrl, // at least save the main image
+                        status: 'active'
+                    }
+                });
+            } else {
+                throw dbErr;
             }
-        });
+        }
 
         // Run AI matching in background — non-blocking
         const { findMatches } = require('../utils/aiMatcher');
@@ -121,22 +148,47 @@ router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
         const maskImage = req.body.maskImage === 'true';
         const { imageUrl, originalImageUrl } = await processImage(req.file.path, maskImage);
 
-        const item = await prisma.foundItem.create({
-            data: {
-                finderId: req.user.id,
-                itemName,
-                category,
-                locationText: locationText || null,
-                lat: parseFloat(lat),
-                lng: parseFloat(lng),
-                condition: condition || null,
-                storagePlace: storagePlace || null,
-                finderPreference: finderPreference || null,
-                imageUrl,
-                originalImageUrl,
-                status: 'active'
+        let item;
+        try {
+            item = await prisma.foundItem.create({
+                data: {
+                    finderId: req.user.id,
+                    itemName,
+                    category,
+                    locationText: locationText || null,
+                    lat: parseFloat(lat),
+                    lng: parseFloat(lng),
+                    condition: condition || null,
+                    storagePlace: storagePlace || null,
+                    finderPreference: finderPreference || null,
+                    imageUrl,
+                    originalImageUrl,
+                    status: 'active'
+                }
+            });
+        } catch (dbErr) {
+            // Fallback for when migrations haven't run/failed
+            if (dbErr.message.includes('originalImageUrl') && dbErr.message.includes('current database')) {
+                console.warn('⚠️  Database schema out of sync. Falling back to simple item creation.');
+                item = await prisma.foundItem.create({
+                    data: {
+                        finderId: req.user.id,
+                        itemName,
+                        category,
+                        locationText: locationText || null,
+                        lat: parseFloat(lat),
+                        lng: parseFloat(lng),
+                        condition: condition || null,
+                        storagePlace: storagePlace || null,
+                        finderPreference: finderPreference || null,
+                        imageUrl,
+                        status: 'active'
+                    }
+                });
+            } else {
+                throw dbErr;
             }
-        });
+        }
 
         // Run AI matching in background — non-blocking
         const { findMatches } = require('../utils/aiMatcher');
