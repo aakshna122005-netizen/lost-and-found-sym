@@ -18,8 +18,8 @@ const Register = () => {
 
         // Frontend Form Validations
         const emailLower = email.toLowerCase();
-        if (emailLower.includes('@gnail.') || emailLower.includes('@gmil.')) {
-            return setError('Did you mean @gmail.com? Please check your email for typos.');
+        if (!emailLower.endsWith('@gmail.com')) {
+            return setError('For security, we only allow @gmail.com accounts. Please use a valid Google email.');
         }
 
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#+-_.,])[A-Za-z\d@$!%*?&#+-_.,]{8,}$/;
@@ -48,12 +48,13 @@ const Register = () => {
             {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>}
 
             {!message && (
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4" autoComplete="off">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
                         <input
                             type="text"
                             required
+                            autoComplete="new-password"
                             className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -64,6 +65,7 @@ const Register = () => {
                         <input
                             type="email"
                             required
+                            autoComplete="new-password"
                             className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -74,6 +76,7 @@ const Register = () => {
                         <input
                             type="password"
                             required
+                            autoComplete="new-password"
                             className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}

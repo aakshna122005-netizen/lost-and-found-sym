@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import api from '../utils/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import LocationPicker from '../components/ui/LocationPicker';
 import { Package, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const ReportFound = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         itemName: '',
         category: '',
@@ -49,6 +51,19 @@ const ReportFound = () => {
             alert(`Error submitting report: ${errMsg}`);
         }
     };
+
+    if (!user) {
+        return (
+            <div className="max-w-2xl mx-auto mt-20 p-8 text-center bg-white rounded-2xl shadow-sm border border-slate-100">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">Login Required 🔒</h2>
+                <p className="text-slate-500 mb-6 font-medium">You must be logged in to report a found item securely.</p>
+                <div className="flex gap-4 justify-center">
+                    <Link to="/login" className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition">Sign In</Link>
+                    <Link to="/register" className="bg-emerald-100 text-emerald-700 px-8 py-3 rounded-xl font-bold hover:bg-emerald-200 transition">Register</Link>
+                </div>
+            </div>
+        );
+    }
 
     if (submittedItem) {
         return (
