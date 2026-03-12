@@ -11,8 +11,20 @@ const { body, validationResult } = require('express-validator');
 // 1. Validation Middleware for Registration
 const registerValidation = [
     body('username').trim().notEmpty().withMessage('Username is required').isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+    body('email').isEmail().withMessage('Please provide a valid email')
+        .custom(value => {
+            const emailLower = value.toLowerCase();
+            if (emailLower.includes('@gnail.') || emailLower.includes('@gmil.')) {
+                throw new Error('Did you mean @gmail.com? Please check your email for typos.');
+            }
+            return true;
+        }),
+    body('password')
+        .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+        .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+        .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+        .matches(/\d/).withMessage('Password must contain at least one number')
+        .matches(/[@$!%*?&#+-_.,]/).withMessage('Password must contain at least one symbol')
 ];
 
 // 2. Register Controller

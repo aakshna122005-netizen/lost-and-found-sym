@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
+        const token = sessionStorage.getItem("token");
+        const storedUser = sessionStorage.getItem("user");
 
         if (token && storedUser) {
             setUser(JSON.parse(storedUser));
@@ -27,8 +27,8 @@ export const AuthProvider = ({ children }) => {
 
             if (res.data.success) {
                 const { token, user: userData } = res.data;
-                localStorage.setItem("token", token);
-                localStorage.setItem("user", JSON.stringify(userData));
+                sessionStorage.setItem("token", token);
+                sessionStorage.setItem("user", JSON.stringify(userData));
                 setUser(userData);
                 return { success: true, message: res.data.message };
             }
@@ -76,8 +76,8 @@ export const AuthProvider = ({ children }) => {
             if (res.data.success) {
                 // Auto-login after registration if token is provided
                 if (res.data.token && res.data.user) {
-                    localStorage.setItem("token", res.data.token);
-                    localStorage.setItem("user", JSON.stringify(res.data.user));
+                    sessionStorage.setItem("token", res.data.token);
+                    sessionStorage.setItem("user", JSON.stringify(res.data.user));
                     setUser(res.data.user);
                 }
                 return { success: true, message: res.data.message };
@@ -93,14 +93,14 @@ export const AuthProvider = ({ children }) => {
 
     // ✅ Login with Token (Called from Callback)
     const loginWithToken = (token, userData) => {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(userData));
+        sessionStorage.setItem("token", token);
+        sessionStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
     };
 
     // ✅ Logout
     const logout = () => {
-        localStorage.clear();
+        sessionStorage.clear();
         setUser(null);
     };
 

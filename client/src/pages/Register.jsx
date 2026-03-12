@@ -15,6 +15,18 @@ const Register = () => {
         e.preventDefault();
         setError('');
         setMessage('');
+
+        // Frontend Form Validations
+        const emailLower = email.toLowerCase();
+        if (emailLower.includes('@gnail.') || emailLower.includes('@gmil.')) {
+            return setError('Did you mean @gmail.com? Please check your email for typos.');
+        }
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#+-_.,])[A-Za-z\d@$!%*?&#+-_.,]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return setError('Password must be at least 8 characters and include a lowercase letter, uppercase letter, number, and symbol.');
+        }
+
         const result = await register(username, email, password);
         if (result.success) {
             setMessage(result.message);

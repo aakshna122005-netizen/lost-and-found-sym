@@ -112,7 +112,7 @@ const ReportFound = () => {
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Condition</label>
-                    <select name="condition" className="w-full px-4 py-2 border rounded-lg" onChange={handleChange}>
+                    <select name="condition" required className="w-full px-4 py-2 border rounded-lg" onChange={handleChange}>
                         <option value="Good">Good</option>
                         <option value="Damaged">Damaged</option>
                         <option value="Old">Old</option>
@@ -121,12 +121,12 @@ const ReportFound = () => {
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Current Storage Location</label>
-                    <input type="text" name="storagePlace" className="w-full px-4 py-2 border rounded-lg" onChange={handleChange} placeholder="e.g. Security Guard Desk, My Office" />
+                    <input type="text" name="storagePlace" required className="w-full px-4 py-2 border rounded-lg" onChange={handleChange} placeholder="e.g. Security Guard Desk, My Office" />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Preferred Return Method</label>
-                    <select name="finderPreference" className="w-full px-4 py-2 border rounded-lg" onChange={handleChange}>
+                    <select name="finderPreference" required className="w-full px-4 py-2 border rounded-lg" onChange={handleChange}>
                         <option value="meet">Willing to Meet</option>
                         <option value="police">Dropped at Police/Security</option>
                         <option value="courier">Courier (Verified Only)</option>

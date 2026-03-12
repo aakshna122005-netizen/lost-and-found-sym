@@ -185,7 +185,13 @@ router.get('/lost', async (req, res) => {
 // GET /found — All active found items
 router.get('/found', async (req, res) => {
     try {
-        const items = await prisma.foundItem.findMany({ where: { status: 'active' } });
+        const items = await prisma.foundItem.findMany({ 
+            where: { 
+                status: { in: ['active', 'match_found'] } 
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
         res.json(items);
     } catch (err) {
         res.status(500).json({ error: err.message });
