@@ -89,7 +89,7 @@ const ReportLost = () => {
                 </div>
                 <h1 className="text-3xl font-extrabold text-slate-900 mb-4">Report Submitted Successfully!</h1>
                 <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
-                    We have securely saved your lost <b>{submittedItem.itemName}</b>. Our AI matching engine is currently scanning through all found items.
+                    We have securely saved your lost item: <b>{submittedItem.itemName}</b>. Our AI matching engine is currently scanning through all found items.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
