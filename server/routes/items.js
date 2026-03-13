@@ -89,8 +89,9 @@ router.post('/lost', verifyToken, upload.single('image'), async (req, res) => {
             });
         } catch (dbErr) {
             // Fallback for when migrations haven't run/failed
-            if (dbErr.message.includes('originalImageUrl') && dbErr.message.includes('current database')) {
-                console.warn('⚠️  Database schema out of sync. Falling back to simple item creation.');
+            // Using a case-insensitive regex to catch various Prisma error formats
+            if (/originalImageUrl/i.test(dbErr.message)) {
+                console.warn('⚠️  Database schema out of sync (originalImageUrl missing). Falling back to simple item creation.');
                 item = await prisma.lostItem.create({
                     data: {
                         userId: req.user.id,
@@ -109,6 +110,7 @@ router.post('/lost', verifyToken, upload.single('image'), async (req, res) => {
                     }
                 });
             } else {
+                console.error('❌ Database Item Creation Error:', dbErr.message);
                 throw dbErr;
             }
         }
@@ -168,8 +170,8 @@ router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
             });
         } catch (dbErr) {
             // Fallback for when migrations haven't run/failed
-            if (dbErr.message.includes('originalImageUrl') && dbErr.message.includes('current database')) {
-                console.warn('⚠️  Database schema out of sync. Falling back to simple item creation.');
+            if (/originalImageUrl/i.test(dbErr.message)) {
+                console.warn('⚠️  Database schema out of sync (originalImageUrl missing). Falling back to simple item creation.');
                 item = await prisma.foundItem.create({
                     data: {
                         finderId: req.user.id,
@@ -186,6 +188,7 @@ router.post('/found', verifyToken, upload.single('image'), async (req, res) => {
                     }
                 });
             } else {
+                console.error('❌ Database Item Creation Error:', dbErr.message);
                 throw dbErr;
             }
         }
