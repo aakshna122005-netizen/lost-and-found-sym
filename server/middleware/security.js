@@ -19,7 +19,7 @@ const setupSecurity = (app) => {
 
     app.use(cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
                 callback(null, true);
             } else {
                 callback(new Error('Blocked by Production CORS Policy'));
