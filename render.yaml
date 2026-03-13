@@ -1,12 +1,11 @@
-services:
-  # 1. PostgreSQL Database
-  - type: database
-    name: lost-and-found-db
+databases:
+  - name: lost-and-found-db
     databaseName: lost_and_found
     user: lost_and_found_user
     plan: free
 
-  # 2. Express Backend
+services:
+  # 1. Express Backend
   - type: web
     name: lost-and-found-backend
     env: node
@@ -35,7 +34,7 @@ services:
       - key: EMAIL_PASS
         sync: false
 
-  # 3. FastAPI AI Service
+  # 2. FastAPI AI Service
   - type: web
     name: lost-and-found-ai
     env: python
@@ -46,7 +45,7 @@ services:
       - key: PORT
         value: 8000
 
-  # 4. Vite Frontend
+  # 3. Vite Frontend
   - type: static
     name: lost-and-found-frontend
     env: static
