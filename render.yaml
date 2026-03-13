@@ -46,7 +46,7 @@ services:
         value: 8000
 
   # 3. Vite Frontend
-  - type: static
+  - type: web
     name: lost-and-found-frontend
     env: static
     buildCommand: cd client && npm install && npm run build
