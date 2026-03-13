@@ -1,0 +1,61 @@
+services:
+  # 1. PostgreSQL Database
+  - type: database
+    name: lost-and-found-db
+    databaseName: lost_and_found
+    user: lost_and_found_user
+    plan: free
+
+  # 2. Express Backend
+  - type: web
+    name: lost-and-found-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install && npx prisma generate
+    startCommand: cd server && npx prisma migrate deploy && node index.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lost-and-found-db
+          property: connectionString
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        fromContext: frontendUrl
+      - key: AI_SERVICE_URL
+        fromContext: aiServiceUrl
+      - key: SMTP_HOST
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+
+  # 3. FastAPI AI Service
+  - type: web
+    name: lost-and-found-ai
+    env: python
+    plan: free
+    buildCommand: cd ai_service && pip install -r requirements.txt
+    startCommand: cd ai_service && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 8000
+
+  # 4. Vite Frontend
+  - type: static
+    name: lost-and-found-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromContext: backendUrl
+        path: /api/
+    rewriteRules:
+      - source: /.*
+        destination: /index.html
