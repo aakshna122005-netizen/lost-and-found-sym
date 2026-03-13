@@ -55,6 +55,7 @@ services:
       - key: VITE_API_BASE_URL
         fromContext: backendUrl
         path: /api/
-    rewriteRules:
-      - source: /.*
+    routes:
+      - type: rewrite
+        source: /.*
         destination: /index.html
