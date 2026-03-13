@@ -54,6 +54,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
 echo "Applying database migrations..."\n\
 cd /app/server\n\
 npx prisma migrate deploy\n\
+node sync_db.js\n\
 \n\
 echo "Starting Node JS Server..."\n\
 cd /app/server\n\
