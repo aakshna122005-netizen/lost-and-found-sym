@@ -71,21 +71,38 @@ const LocationPicker = ({ onLocationSelect }) => {
         }
     }, [position, address, onLocationSelect]);
 
-    const handleSearch = async (query) => {
+    const searchTimeoutRef = useRef(null);
+
+    const handleSearch = (query) => {
         setSearchQuery(query);
         if (query.length < 3) {
             setSuggestions([]);
+            setShowSuggestions(false);
             return;
         }
 
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-            const data = await response.json();
-            setSuggestions(data);
-            setShowSuggestions(true);
-        } catch (error) {
-            console.error('Search error:', error);
-        }
+        // Debounce: wait 400ms after user stops typing before calling API
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+                    {
+                        headers: {
+                            'Accept-Language': 'en',
+                            'User-Agent': 'YouLostWeFound/1.0 (lost-and-found-inky.vercel.app)'
+                        }
+                    }
+                );
+                if (!response.ok) throw new Error('Nominatim error');
+                const data = await response.json();
+                setSuggestions(data);
+                setShowSuggestions(data.length > 0);
+            } catch (error) {
+                console.error('Search error:', error);
+                setSuggestions([]);
+            }
+        }, 400);
     };
 
     const selectLocation = (item) => {
